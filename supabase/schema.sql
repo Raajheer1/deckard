@@ -1,7 +1,8 @@
 CREATE TABLE papers (
-    url VARCHAR(255) NOT NULL,
+    id SERIAL PRIMARY KEY,
+    link VARCHAR(255) UNIQUE NOT NULL,
     title VARCHAR(255) NOT NULL,
-    abstract VARCHAR(500) NOT NULL
+    summary VARCHAR(500) NOT NULL,
     embedding vector(1024)
 );
 CREATE TABLE preferences (
@@ -10,6 +11,45 @@ CREATE TABLE preferences (
   user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE
   embedding vector(1024)
 );
+
+-- Function to match documents based on similarity
+create or replace function match_documents (
+  query_embeddings vector(1024)[],  -- Array of embeddings
+  match_threshold float,
+  match_count int
+)
+returns table (
+  id int,
+  link text,
+  title text,
+  summary text,
+  similarity float
+)
+language sql stable
+as $$
+  with similarity_scores as (
+    select
+      papers.id,
+      papers.link,
+      papers.title,
+      papers.summary,
+      max(1 - (papers.embedding <=> unnest(query_embeddings))) as max_similarity
+    from papers
+    cross join unnest(query_embeddings) as query_embedding
+    group by papers.id, papers.link, papers.title, papers.summary
+  )
+  select
+    id,
+    link,
+    title,
+    summary,
+    max_similarity as similarity
+  from similarity_scores
+  where max_similarity > match_threshold
+  order by max_similarity desc
+  limit match_count;
+$$;
+
 
 CREATE TABLE public.profiles (
   id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,

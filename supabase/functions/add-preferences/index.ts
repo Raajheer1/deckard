@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { getVoyageEmbeddings } from "./voyage-embeddings.ts";
+import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
+import { errorResponse } from "../lib/error-response.ts";
 Deno.serve(async (req: Request) => {
   const { preferences } = await req.json();
   if (!preferences) {
@@ -16,23 +17,35 @@ Deno.serve(async (req: Request) => {
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
-  const { data, findUserError } = await supabaseClient.auth.getUser(token);
+  const { data, error: findUserError } = await supabaseClient.auth.getUser(
+    token,
+  );
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
 
   const user = data.user;
+  if (!user) {
+    return errorResponse("User not found");
+  }
 
-  const { data: embeddings, error: embeddingsError } =
+  console.log("Creating embeddings for ", preferences.length, " preferences");
+  const { embeddings: embeddingResults, error: embeddingsError } =
     await getVoyageEmbeddings(preferences);
 
-  if (embeddingsError || !embeddings) {
+  if (embeddingsError || !embeddingResults) {
     return errorResponse(
       embeddingsError?.message ?? "Error getting embeddings",
     );
   }
-  console.log(user);
+  console.log("Embeddings created successfully: ", embeddingResults.length);
 
+  const embeddings = embeddingResults.map((result, index) => ({
+    embedding: result,
+    preference: preferences[index],
+  }));
+
+  console.log("Inserting preferences into database...");
   const { data: _, error: insertError } = await supabaseClient
     .from("preferences")
     .insert(
@@ -42,6 +55,7 @@ Deno.serve(async (req: Request) => {
         user_id: user.id,
       })),
     );
+  console.log("Preferences inserted into database successfully");
 
   if (insertError) {
     return new Response(JSON.stringify({ error: insertError.message }), {
@@ -55,10 +69,3 @@ Deno.serve(async (req: Request) => {
     status: 200,
   });
 });
-
-function errorResponse(message: string) {
-  return new Response(JSON.stringify({ error: message }), {
-    headers: { "Content-Type": "application/json" },
-    status: 500,
-  });
-}
