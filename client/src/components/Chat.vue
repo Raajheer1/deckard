@@ -38,7 +38,7 @@
       <div v-if="queryingLLM">
         <div class="flex w-1/3 ml-24 py-4">
           <div class="flex-grow bg-gray-100 rounded-xl p-4">
-            <h5 class="font-semibold mb-2">Fetching...</h5>
+            <h5 class="font-semibold mb-2">Thinking...</h5>
           </div>
         </div>
       </div>
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, ref, watch} from "vue";
+import {onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {ChatMessage, PaperCard} from "@/types";
 import {Button, InputText} from "primevue";
 import {AddFavorite, ChatPaper} from "@/lib/supabase";
@@ -91,6 +91,7 @@ const addFavorite = async (): Promise<void> => {
   }
 };
 
+
 watch(
     () => props.messages, async (newMsg: ChatMessage[], oldMsg) => {
       // If last message is from user then send a message to assistant
@@ -108,16 +109,28 @@ watch(
         }
         queryingLLM.value = false;
       }
-
-      const chatWindow = document.getElementById('chatWindow');
-      chatWindow?.scrollTo(0, chatWindow.scrollHeight);
     },
     {deep: true}
 );
 
+const chatWindowRef = ref<HTMLElement | null>(null);
+let intervalId: NodeJS.Timeout | null = null;
+
+const scrollDown = () => {
+  const chatWindow = chatWindowRef.value;
+  if (chatWindow !== null) {
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+  }
+};
+
 onMounted(() => {
-  const chatWindow = document.getElementById('chatWindow');
-  chatWindow?.scrollTo(0, chatWindow.scrollHeight);
+  intervalId = setInterval(scrollDown, 500);
+});
+
+onBeforeUnmount(() => {
+  if (intervalId) {
+    clearInterval(intervalId);
+  }
 });
 </script>
 
