@@ -9,14 +9,8 @@ interface VoyageEmbeddingResponse {
         total_tokens: number;
     };
 }
-
-interface PreferenceEmbedding {
-    preference: string;
-    embedding: number[];
-}
-
-interface EmbeddingResult {
-    data: PreferenceEmbedding[] | null;
+export interface EmbeddingResult {
+    embeddings: number[][] | null;
     error: Error | null;
 }
 
@@ -36,25 +30,20 @@ async function getVoyageEmbeddings(texts: string[]): Promise<EmbeddingResult> {
 
         if (!response.ok) {
             return {
-                data: null,
+                embeddings: null,
                 error: new Error(`Voyage API error: ${response.statusText}`),
             };
         }
 
         const result: VoyageEmbeddingResponse = await response.json();
-
-        const embeddings = texts.map((text, index) => ({
-            preference: text,
-            embedding: result.data[index].embedding,
-        }));
-
+        const embeddings = result.data.map((item) => item.embedding);
         return {
-            data: embeddings,
+            embeddings,
             error: null,
         };
     } catch (err) {
         return {
-            data: null,
+            embeddings: null,
             error: err instanceof Error ? err : new Error(String(err)),
         };
     }

@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { errorResponse } from "../lib/error-response.ts";
 
 Deno.serve(async (req: Request) => {
   const supabaseClient = createClient(
@@ -25,10 +26,3 @@ Deno.serve(async (req: Request) => {
     status: 200,
   });
 });
-
-function errorResponse(message: string) {
-  return new Response(JSON.stringify({ error: message }), {
-    headers: { "Content-Type": "application/json" },
-    status: 500,
-  });
-}
