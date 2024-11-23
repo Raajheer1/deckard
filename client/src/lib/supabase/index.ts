@@ -187,14 +187,14 @@ export async function SearchPapers(
     "search",
     {
       body: {
-        query: query,
+        query: query + " research",
         matchThreshold: 0.2,
         maxResults: 10,
       },
     }
   );
 
-  const paperRes = data.message;
+  const paperRes = data.message.results;
   const papers = paperRes.map((paper: any) => ({
     id: paper.id,
     link: paper.link,
