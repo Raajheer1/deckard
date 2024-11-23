@@ -1,6 +1,6 @@
 import {supabase} from "../client";
 import {AuthError, PostgrestError, User} from "@supabase/supabase-js";
-import {Preference, PreferenceReq} from "../../types";
+import {PaperCard, Preference} from "../../types";
 
 export async function GetUser(): Promise<User | null> {
     const {data, error} = await supabase.auth.getUser();
@@ -52,13 +52,9 @@ export async function SignUp(
     return {data: null, error};
 }
 
-export async function SetPreferences(preferences: PreferenceReq[]): Promise<any> {
-    let prefs: string[] = [];
-    preferences.forEach((pref) => {
-        prefs.push(pref.preference);
-    });
+export async function SetPreferences(preferences: string[]): Promise<{ error: any }> {
     const {error} = await supabase.functions.invoke('add-preferences', {
-        body: {preferences: prefs}
+        body: {preferences: preferences}
     })
 
     if (error !== null) {
@@ -71,4 +67,59 @@ export async function SetPreferences(preferences: PreferenceReq[]): Promise<any>
 export async function RemovePreference(preference: Preference): Promise<PostgrestError | null> {
     const {error} = await supabase.from('preferences').delete().eq('id', preference.id);
     return error
+}
+
+export async function GetPreferredPapers(): Promise<{ data: PaperCard[], error: any }> {
+    const {data, error} = await supabase.functions.invoke('get-preferred-papers');
+    return {data, error};
+}
+
+
+export async function mockGetPreferredPapers(): Promise<{ data: PaperCard[], error: any }> {
+    const data: PaperCard[] = [
+        {
+            id: "1",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 1",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: false
+        },
+        {
+            id: "2",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 2",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: true
+        }
+    ];
+
+    return {data, error: null};
+}
+
+export async function SearchPapers(query: string): Promise<{ data: PaperCard[], error: any }> {
+    const {data, error} = await supabase.functions.invoke('search-papers', {
+        body: {query: query}
+    });
+    return {data, error};
+}
+
+export async function mockSearchPapers(query: string): Promise<{ data: PaperCard[], error: any }> {
+    const data: PaperCard[] = [
+        {
+            id: "3",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 3",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: false
+        },
+        {
+            id: "4",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 4",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: false
+        }
+    ];
+
+    return {data, error: null};
 }
