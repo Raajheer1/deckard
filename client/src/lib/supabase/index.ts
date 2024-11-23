@@ -245,3 +245,36 @@ export async function mockSearchPapers(
 
   return { data, error: null };
 }
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  message: string;
+  error: any;
+}
+
+export async function ChatPaper(
+  paperId: string,
+  messages: ChatMessage[]
+) {
+  console.log(messages);
+  const systemPrompt =
+    "You are an intelligent researcher explaining the paper to the user who may not be familiar with the concepts discussed in the paper. Be very concise in your answers.";
+  const { data, error } = await supabase.functions.invoke(
+    "chat-paper",
+    {
+      body: {
+        paperId: paperId,
+        messages: messages,
+        model: "claude-3-5-sonnet-latest",
+        max_tokens: 512,
+        system_prompt: systemPrompt,
+      },
+    }
+  );
+
+  return { message: data.message, error };
+}
