@@ -1,6 +1,7 @@
 <template>
   <div class="flex items-center justify-center mt-[100px]">
     <div
+        v-if="page == 1"
         class="flex flex-col justify-center items-center p-[30px]"
     >
       <!-- Title -->
@@ -81,6 +82,8 @@ const credentials = ref<RegisterReq>({
 
 const isLoading = ref<boolean>(false);
 const errorMessage = ref<string>("");
+
+const page = ref<number>(1);
 
 const submit = async (e: Event) => {
   e.preventDefault();

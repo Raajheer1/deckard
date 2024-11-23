@@ -1,5 +1,6 @@
 import {supabase} from "../client";
-import {AuthError, User} from "@supabase/supabase-js";
+import {AuthError, PostgrestError, User} from "@supabase/supabase-js";
+import {Preference, PreferenceReq} from "../../types";
 
 export async function GetUser(): Promise<User | null> {
     const {data, error} = await supabase.auth.getUser();
@@ -49,4 +50,25 @@ export async function SignUp(
     }
 
     return {data: null, error};
+}
+
+export async function SetPreferences(preferences: PreferenceReq[]): Promise<any> {
+    let prefs: string[] = [];
+    preferences.forEach((pref) => {
+        prefs.push(pref.preference);
+    });
+    const {error} = await supabase.functions.invoke('add-preferences', {
+        body: {preferences: prefs}
+    })
+
+    if (error !== null) {
+        return error;
+    }
+
+    return null;
+}
+
+export async function RemovePreference(preference: Preference): Promise<PostgrestError | null> {
+    const {error} = await supabase.from('preferences').delete().eq('id', preference.id);
+    return error
 }
