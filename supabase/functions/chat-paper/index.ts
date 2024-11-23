@@ -1,13 +1,19 @@
-import { errorResponse } from "../lib/error-response.ts";
+import {
+  errorResponse,
+  optionsResponse,
+  successResponse,
+} from "../lib/responses.ts";
 import { Anthropic } from "npm:@anthropic-ai/sdk";
 import supabaseClient from "../lib/supabase-client.ts";
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return optionsResponse();
+
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
-  const { data, error: findUserError } = await supabaseClient.auth.getUser(
-    token,
-  );
+  const { data, error: findUserError } =
+    await supabaseClient.auth.getUser(token);
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
@@ -33,11 +39,12 @@ Deno.serve(async (req: Request) => {
   }
 
   // Fetch paper details
-  const { data: paper, error: paperError } = await supabaseClient
-    .from("papers")
-    .select("title, summary")
-    .eq("id", paperId)
-    .single();
+  const { data: paper, error: paperError } =
+    await supabaseClient
+      .from("papers")
+      .select("title, summary")
+      .eq("id", paperId)
+      .single();
 
   if (paperError) {
     return errorResponse("Failed to fetch paper details");
@@ -61,11 +68,7 @@ Deno.serve(async (req: Request) => {
     system: systemPrompt,
   });
 
-  return new Response(
-    JSON.stringify((chatResponse.content[0] as Anthropic.TextBlock).text),
-    {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    },
+  return successResponse(
+    (chatResponse.content[0] as Anthropic.TextBlock).text
   );
 });

@@ -1,13 +1,12 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
-import { errorResponse } from "../lib/error-response.ts";
+import {
+  errorResponse,
+  optionsResponse,
+  successResponse,
+} from "../lib/responses.ts";
 import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
-
+import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
-
+  if (req.method === "OPTIONS") return optionsResponse();
   // Get the session or user object
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
@@ -15,9 +14,8 @@ Deno.serve(async (req: Request) => {
   }
 
   const token = authHeader.replace("Bearer ", "");
-  const { data, error: findUserError } = await supabaseClient.auth.getUser(
-    token,
-  );
+  const { data, error: findUserError } =
+    await supabaseClient.auth.getUser(token);
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
@@ -28,14 +26,17 @@ Deno.serve(async (req: Request) => {
   }
 
   // Now proceed with the search logic
-  const { query, matchThreshold = 0.2, matchCount = 10 } = await req.json();
-  // Get embedding for the search query
-  const { embeddings, error: embeddingError } = await getVoyageEmbeddings([
+  const {
     query,
-  ]);
+    matchThreshold = 0.2,
+    matchCount = 10,
+  } = await req.json();
+  // Get embedding for the search query
+  const { embeddings, error: embeddingError } =
+    await getVoyageEmbeddings([query]);
   if (embeddingError) {
     return errorResponse(
-      `Failed to generate embedding: ${embeddingError.message}`,
+      `Failed to generate embedding: ${embeddingError.message}`
     );
   }
   if (!embeddings || embeddings.length === 0) {
@@ -44,19 +45,19 @@ Deno.serve(async (req: Request) => {
   const queryEmbedding = embeddings[0];
 
   // Search papers using RPC call
-  const { data: searchResults, error: searchError } = await supabaseClient
-    .rpc("search_papers", {
+  const { data: searchResults, error: searchError } =
+    await supabaseClient.rpc("search_papers", {
       query_embedding: queryEmbedding,
       match_threshold: matchThreshold,
       match_count: matchCount,
+      user_id: user.id,
     });
 
   if (searchError) {
-    return errorResponse(`Search failed: ${searchError.message}`);
+    return errorResponse(
+      `Search failed: ${searchError.message}`
+    );
   }
 
-  return new Response(JSON.stringify({ results: searchResults }), {
-    headers: { "Content-Type": "application/json" },
-    status: 200,
-  });
+  return successResponse({ results: searchResults });
 });

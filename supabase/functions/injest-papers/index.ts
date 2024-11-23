@@ -1,11 +1,18 @@
 import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
 import { getArxivPapers } from "../lib/query-arxiv.ts";
-import { errorResponse } from "../lib/error-response.ts";
+import {
+  errorResponse,
+  optionsResponse,
+  successResponse,
+} from "../lib/responses.ts";
 import supabaseClient from "../lib/supabase-client.ts";
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return optionsResponse();
+
   const { paperCount, category } = await req.json();
-  if (!paperCount) return errorResponse("No paper count provided");
+  if (!paperCount)
+    return errorResponse("No paper count provided");
   if (typeof paperCount !== "number") {
     return errorResponse("Paper count must be a number");
   }
@@ -22,24 +29,30 @@ Deno.serve(async (req) => {
 
   // Get papers from arXiv
   console.log("Getting papers from arXiv...");
-  const { data: papers, error: arxivError } = await getArxivPapers(
-    paperCount,
-    category,
-  );
+  const { data: papers, error: arxivError } =
+    await getArxivPapers(paperCount, category);
   if (arxivError) return errorResponse(arxivError);
   if (!papers) return errorResponse("No papers found");
   console.log("Papers retrieved successfully: ", papers.length);
 
-  console.log("Creating embeddings for ", papers.length, " papers");
-  const textsToEmbed = papers.map((paper) =>
-    `${paper.title}: ${paper.summary}`
+  console.log(
+    "Creating embeddings for ",
+    papers.length,
+    " papers"
   );
-  const { embeddings, error: embeddingsError } = await getVoyageEmbeddings(
-    textsToEmbed,
+  const textsToEmbed = papers.map(
+    (paper) => `${paper.title}: ${paper.summary}`
   );
-  if (embeddingsError) return errorResponse(embeddingsError.message);
-  if (!embeddings) return errorResponse("Failed to generate embeddings");
-  console.log("Embeddings created successfully: ", embeddings.length);
+  const { embeddings, error: embeddingsError } =
+    await getVoyageEmbeddings(textsToEmbed);
+  if (embeddingsError)
+    return errorResponse(embeddingsError.message);
+  if (!embeddings)
+    return errorResponse("Failed to generate embeddings");
+  console.log(
+    "Embeddings created successfully: ",
+    embeddings.length
+  );
 
   // Insert papers with embeddings into database
   console.log("Inserting papers into database...");
@@ -55,15 +68,12 @@ Deno.serve(async (req) => {
       {
         onConflict: "link",
         ignoreDuplicates: true,
-      },
+      }
     );
   if (insertError) return errorResponse(insertError.message);
   console.log("Papers inserted into database successfully");
 
-  return new Response(
-    JSON.stringify({
-      message: `Successfully ingested ${papers.length} papers`,
-    }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+  return successResponse({
+    message: `Successfully ingested ${papers.length} papers`,
+  });
 });

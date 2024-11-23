@@ -1,4 +1,4 @@
-import { errorResponse } from "../lib/error-response.ts";
+import { errorResponse } from "../lib/responses.ts";
 import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
   // Verify supabase client is initialized correctly
@@ -8,9 +8,8 @@ Deno.serve(async (req: Request) => {
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
-  const { data, error: findUserError } = await supabaseClient.auth.getUser(
-    token,
-  );
+  const { data, error: findUserError } =
+    await supabaseClient.auth.getUser(token);
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
@@ -21,8 +20,10 @@ Deno.serve(async (req: Request) => {
   }
   console.log(user);
 
-  const { data: userData, error } = await supabaseClient.from("profiles")
-    .select("*").eq("id", user?.id);
+  const { data: userData, error } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", user?.id);
 
   if (error) {
     return errorResponse(error.message);

@@ -1,6 +1,7 @@
 DROP TABLE IF EXISTS papers;
 DROP TABLE IF EXISTS preferences;
 DROP TABLE IF EXISTS profiles;
+DROP TABLE IF EXISTS favorites;
 
 CREATE TABLE papers (
     id SERIAL PRIMARY KEY,
@@ -15,6 +16,11 @@ CREATE TABLE preferences (
   user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE,
   embedding vector(1024)
 );
+CREATE TABLE favorites (
+  id SERIAL PRIMARY KEY,
+  paper_id INT REFERENCES papers (id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE
+);
 
 -- Function to match documents based on similarity
 CREATE OR REPLACE FUNCTION match_documents_for_user (
@@ -27,7 +33,8 @@ returns table (
   link text,
   title text,
   summary text,
-  similarity float
+  similarity float,
+  is_favorited boolean
 )
 language sql stable
 as $$
@@ -47,13 +54,17 @@ as $$
     cross join lateral (select embedding from user_embeddings) as user_embeddings
   )
   select
-    id,
+    similarity_scores.id,
     link,
     title,
     summary,
-    max(similarity) as similarity
+    max(similarity) as similarity,
+    CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS is_favorited
   from similarity_scores
-  group by id, link, title, summary
+    LEFT JOIN 
+    favorites f 
+    ON similarity_scores.id = f.paper_id AND f.user_id = match_documents_for_user.user_id
+  group by similarity_scores.id, link, title, summary, f.id
   having max(similarity) > match_threshold
   order by similarity desc
   limit match_count;
@@ -63,14 +74,16 @@ $$;
 CREATE OR REPLACE FUNCTION search_papers (
   query_embedding vector(1024),
   match_threshold float,
-  match_count int
+  match_count int,
+  user_id UUID
 )
 returns table (
   id bigint,
   title text,
   summary text,
   link text,
-  similarity float
+  similarity float,
+  is_favorited boolean
 )
 language sql stable
 as $$
@@ -79,8 +92,10 @@ as $$
     papers.title,
     papers.summary,
     papers.link,
-    1 - (papers.embedding <=> query_embedding) as similarity
+    1 - (papers.embedding <=> query_embedding) as similarity,
+    CASE WHEN f.id IS NOT NULL THEN true ELSE false END AS is_favorited
   from papers
+  left join favorites f on papers.id = f.paper_id and f.user_id = search_papers.user_id
   where 1 - (papers.embedding <=> query_embedding) > match_threshold
   order by (papers.embedding <=> query_embedding) asc
   limit match_count;

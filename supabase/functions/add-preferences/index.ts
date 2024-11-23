@@ -1,21 +1,24 @@
 import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
-import { errorResponse } from "../lib/error-response.ts";
+import {
+  errorResponse,
+  optionsResponse,
+  successResponse,
+} from "../lib/responses.ts";
 import supabaseClient from "../lib/supabase-client.ts";
+
 Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return optionsResponse();
+
   const { preferences } = await req.json();
   if (!preferences) {
-    return new Response(JSON.stringify({ error: "No preferences provided" }), {
-      headers: { "Content-Type": "application/json" },
-      status: 400,
-    });
+    return errorResponse("No preferences provided");
   }
 
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
-  const { data, error: findUserError } = await supabaseClient.auth.getUser(
-    token,
-  );
+  const { data, error: findUserError } =
+    await supabaseClient.auth.getUser(token);
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
@@ -25,16 +28,25 @@ Deno.serve(async (req: Request) => {
     return errorResponse("User not found");
   }
 
-  console.log("Creating embeddings for ", preferences.length, " preferences");
-  const { embeddings: embeddingResults, error: embeddingsError } =
-    await getVoyageEmbeddings(preferences);
+  console.log(
+    "Creating embeddings for ",
+    preferences.length,
+    " preferences"
+  );
+  const {
+    embeddings: embeddingResults,
+    error: embeddingsError,
+  } = await getVoyageEmbeddings(preferences);
 
   if (embeddingsError || !embeddingResults) {
     return errorResponse(
-      embeddingsError?.message ?? "Error getting embeddings",
+      embeddingsError?.message ?? "Error getting embeddings"
     );
   }
-  console.log("Embeddings created successfully: ", embeddingResults.length);
+  console.log(
+    "Embeddings created successfully: ",
+    embeddingResults.length
+  );
 
   const embeddings = embeddingResults.map((result, index) => ({
     embedding: result,
@@ -49,19 +61,15 @@ Deno.serve(async (req: Request) => {
         preference: embedding.preference,
         embedding: embedding.embedding,
         user_id: user.id,
-      })),
+      }))
     );
-  console.log("Preferences inserted into database successfully");
+  console.log(
+    "Preferences inserted into database successfully"
+  );
 
   if (insertError) {
-    return new Response(JSON.stringify({ error: insertError.message }), {
-      headers: { "Content-Type": "application/json" },
-      status: 500,
-    });
+    return errorResponse(insertError.message);
   }
 
-  return new Response(JSON.stringify({ success: true }), {
-    headers: { "Content-Type": "application/json" },
-    status: 200,
-  });
+  return successResponse({ success: true });
 });
