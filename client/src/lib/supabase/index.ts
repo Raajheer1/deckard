@@ -53,8 +53,9 @@ export async function SignUp(
 }
 
 export async function SetPreferences(preferences: string[]): Promise<{ error: any | null }> {
+    const prefsAppended = preferences.map(p => `${p} research`);
     const {error} = await supabase.functions.invoke('add-preferences', {
-        body: {preferences: preferences}
+        body: {preferences: prefsAppended}
     })
 
     if (error !== null) {
@@ -79,14 +80,30 @@ export async function GetPreferences(userId: string): Promise<{ data: Preference
     return {data, error};
 }
 
-export async function GetPreferredPapers(): Promise<{ data: PaperCard[], error: any }> {
-    const {data, error} = await supabase.functions.invoke('get-preferred-papers');
-    return {data, error};
+export async function GetPreferredPapers(): Promise<{
+    data: PaperCard[];
+    error: any;
+  }> {
+    const { data, error } = await supabase.functions.invoke(
+      "create-recommendation"
+    );
+  
+    const paperRes = data.message;
+    const papers = paperRes.map((paper: any) => ({
+      id: paper.id,
+      link: paper.link,
+      title: paper.title,
+      summary: paper.summary,
+      starred: paper.is_favorited,
+    }));
+    return { data: papers, error };
 }
 
-
-export async function mockGetPreferredPapers(): Promise<{ data: PaperCard[], error: any }> {
-    const data: PaperCard[] = [
+export async function mockGetPreferredPapers(): Promise<{
+  data: PaperCard[];
+  error: any;
+}> {
+  const data: PaperCard[] = [
         {
             id: "1",
             link: "https://arxiv.org/abs/2106.01442",
