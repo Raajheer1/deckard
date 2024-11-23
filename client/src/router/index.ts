@@ -25,6 +25,11 @@ const routes = [
             requiresAuth: true,
         },
     },
+    {
+        path: "/dev",
+        name: "Dev",
+        component: () => import("@/views/DevView.vue"),
+    }
 ]
 
 const buildRouter = (): Router => {
