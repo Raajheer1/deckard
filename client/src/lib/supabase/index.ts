@@ -102,9 +102,14 @@ export async function GetPreferences(
 export async function AddFavorite(
   paperId: string
 ): Promise<PostgrestError | null> {
+  const user = await GetUser();
+  if (user === null) {
+    return null;
+  }
+
   const { error } = await supabase
     .from("favorites")
-    .insert({ paper_id: paperId });
+    .insert({ paper_id: paperId, user_id: user.id });
   return error;
 }
 
@@ -179,12 +184,25 @@ export async function SearchPapers(
   query: string
 ): Promise<{ data: PaperCard[]; error: any }> {
   const { data, error } = await supabase.functions.invoke(
-    "search-papers",
+    "search",
     {
-      body: { query: query },
+      body: {
+        query: query + " research",
+        matchThreshold: 0.2,
+        maxResults: 10,
+      },
     }
   );
-  return { data, error };
+
+  const paperRes = data.message.results;
+  const papers = paperRes.map((paper: any) => ({
+    id: paper.id,
+    link: paper.link,
+    title: paper.title,
+    summary: paper.summary,
+    starred: paper.is_favorited,
+  }));
+  return { data: papers, error };
 }
 
 export async function mockSearchPapers(
