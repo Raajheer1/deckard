@@ -107,8 +107,14 @@ export async function AddFavorite(
     return null;
   }
 
+  const user = await GetUser();
+  if (user === null) {
+    return null;
+  }
+
   const { error } = await supabase
     .from("favorites")
+    .insert({ paper_id: paperId, user_id: user.id });
     .insert({ paper_id: paperId, user_id: user.id });
   return error;
 }
@@ -184,6 +190,7 @@ export async function SearchPapers(
   query: string
 ): Promise<{ data: PaperCard[]; error: any }> {
   const { data, error } = await supabase.functions.invoke(
+    "search",
     "search",
     {
       body: {
