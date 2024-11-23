@@ -17,7 +17,9 @@ Deno.serve(async (req: Request) => {
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
-  const { data, findUserError } = await supabaseClient.auth.getUser(token);
+  const { data, error: findUserError } = await supabaseClient.auth.getUser(
+    token,
+  );
   if (findUserError) {
     return errorResponse(findUserError.message);
   }

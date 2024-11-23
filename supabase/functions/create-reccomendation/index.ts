@@ -16,18 +16,22 @@ Deno.serve(async (req: Request) => {
   if (findUserError) {
     return errorResponse(findUserError.message);
   }
-
   const user = data.user;
   if (!user) {
     return errorResponse("User not found");
   }
-  console.log(user);
 
-  const { data: userData, error } = await supabaseClient.from("profiles")
-    .select("*").eq("id", user?.id);
-
-  if (error) {
-    return errorResponse(error.message);
+  const { data: userData, error: matchDocumentsError } = await supabaseClient
+    .rpc("match_documents_for_user", {
+      user_id: user.id,
+      match_threshold: 0.3,
+      match_count: 10,
+    });
+  if (matchDocumentsError) {
+    return errorResponse(matchDocumentsError.message);
+  }
+  if (!userData) {
+    return errorResponse("No documents found");
   }
 
   return new Response(JSON.stringify({ userData }), {
