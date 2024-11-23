@@ -13,8 +13,8 @@ CREATE TABLE preferences (
 );
 
 -- Function to match documents based on similarity
-create or replace function match_documents (
-  query_embeddings vector(1024)[],  -- Array of embeddings
+CREATE OR REPLACE FUNCTION match_documents_for_user (
+  user_id UUID,  -- User ID to get the query embeddings
   match_threshold float,
   match_count int
 )
@@ -27,29 +27,59 @@ returns table (
 )
 language sql stable
 as $$
-  with similarity_scores as (
+  with user_embeddings as (
+    select embedding
+    from preferences
+    where user_id = match_documents_for_user.user_id
+  ),
+  similarity_scores as (
     select
       papers.id,
       papers.link,
       papers.title,
       papers.summary,
-      max(1 - (papers.embedding <=> unnest(query_embeddings))) as max_similarity
+      1 - (papers.embedding <=> user_embeddings.embedding) as similarity
     from papers
-    cross join unnest(query_embeddings) as query_embedding
-    group by papers.id, papers.link, papers.title, papers.summary
+    cross join lateral (select embedding from user_embeddings) as user_embeddings
   )
   select
     id,
     link,
     title,
     summary,
-    max_similarity as similarity
+    max(similarity) as similarity
   from similarity_scores
-  where max_similarity > match_threshold
-  order by max_similarity desc
+  group by id, link, title, summary
+  having max(similarity) > match_threshold
+  order by similarity desc
   limit match_count;
 $$;
 
+CREATE OR REPLACE FUNCTION search_papers (
+  query_embedding vector(1024),
+  match_threshold float,
+  match_count int
+)
+returns table (
+  id bigint,
+  title text,
+  summary text,
+  link text,
+  similarity float
+)
+language sql stable
+as $$
+  select
+    papers.id,
+    papers.title,
+    papers.summary,
+    papers.link,
+    1 - (papers.embedding <=> query_embedding) as similarity
+  from papers
+  where 1 - (papers.embedding <=> query_embedding) > match_threshold
+  order by (papers.embedding <=> query_embedding) asc
+  limit match_count;
+$$;
 
 CREATE TABLE public.profiles (
   id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,

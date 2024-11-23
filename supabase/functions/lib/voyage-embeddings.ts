@@ -15,7 +15,6 @@ export interface EmbeddingResult {
 }
 
 async function getVoyageEmbeddings(texts: string[]): Promise<EmbeddingResult> {
-    console.log("Getting embeddings from Voyage API for ", texts, "...");
     try {
         const response = await fetch("https://api.voyageai.com/v1/embeddings", {
             method: "POST",

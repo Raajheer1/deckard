@@ -15,11 +15,12 @@ interface ArxivResponse {
 // Function to get 10 papers from arXiv API and extract their title, summary, and URL
 export async function getArxivPapers(
     count: number,
+    category: string,
 ): Promise<ArxivResponse> {
     try {
         // arXiv API endpoint with 'all' category and a limit of 10 results
         const url =
-            `http://export.arxiv.org/api/query?search_query=all&start=0&max_results=${count}`;
+            `http://export.arxiv.org/api/query?search_query=cat:${category}&start=0&max_results=${count}`;
 
         // Fetch the data from the arXiv API
         const response = await fetch(url);

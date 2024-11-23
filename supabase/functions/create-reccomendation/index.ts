@@ -2,6 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { errorResponse } from "../lib/error-response.ts";
 
 Deno.serve(async (req: Request) => {
+  // Get parameters from request body
+  const { matchThreshold = 0.3, matchCount = 10 } = await req.json();
+
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
     Deno.env.get("SUPABASE_ANON_KEY") ?? "",
@@ -24,8 +27,8 @@ Deno.serve(async (req: Request) => {
   const { data: userData, error: matchDocumentsError } = await supabaseClient
     .rpc("match_documents_for_user", {
       user_id: user.id,
-      match_threshold: 0.3,
-      match_count: 10,
+      match_threshold: matchThreshold,
+      match_count: matchCount,
     });
   if (matchDocumentsError) {
     return errorResponse(matchDocumentsError.message);

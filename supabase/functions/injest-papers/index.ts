@@ -4,8 +4,7 @@ import { getArxivPapers } from "../lib/query-arxiv.ts";
 import { errorResponse } from "../lib/error-response.ts";
 
 Deno.serve(async (req) => {
-  // Get count from query parameters
-  const { paperCount } = await req.json();
+  const { paperCount, category } = await req.json();
   if (!paperCount) return errorResponse("No paper count provided");
   if (typeof paperCount !== "number") {
     return errorResponse("Paper count must be a number");
@@ -16,10 +15,17 @@ Deno.serve(async (req) => {
   if (paperCount > 1000) {
     return errorResponse("Paper count must be less than 1000");
   }
+  if (!category) return errorResponse("No category provided");
+  if (typeof category !== "string") {
+    return errorResponse("Category must be a string");
+  }
 
   // Get papers from arXiv
   console.log("Getting papers from arXiv...");
-  const { data: papers, error: arxivError } = await getArxivPapers(paperCount);
+  const { data: papers, error: arxivError } = await getArxivPapers(
+    paperCount,
+    category,
+  );
   if (arxivError) return errorResponse(arxivError);
   if (!papers) return errorResponse("No papers found");
   console.log("Papers retrieved successfully: ", papers.length);
@@ -31,7 +37,7 @@ Deno.serve(async (req) => {
   const { embeddings, error: embeddingsError } = await getVoyageEmbeddings(
     textsToEmbed,
   );
-  if (embeddingsError) return errorResponse(embeddingsError);
+  if (embeddingsError) return errorResponse(embeddingsError.message);
   if (!embeddings) return errorResponse("Failed to generate embeddings");
   console.log("Embeddings created successfully: ", embeddings.length);
 
@@ -43,16 +49,18 @@ Deno.serve(async (req) => {
 
   // Insert papers with embeddings into database
   console.log("Inserting papers into database...");
-  const { error } = await supabaseClient.from("papers").insert(
-    papers.map((paper, index) => ({
-      link: paper.link,
-      title: paper.title,
-      summary: paper.summary.slice(0, 500),
-      embedding: embeddings[index],
-    })),
-  );
+  const { data: _, error: insertError } = await supabaseClient
+    .from("papers")
+    .insert(
+      papers.map((paper, index) => ({
+        link: paper.link,
+        title: paper.title,
+        summary: paper.summary.slice(0, 500),
+        embedding: embeddings[index],
+      })),
+    );
+  if (insertError) return errorResponse(insertError.message);
   console.log("Papers inserted into database successfully");
-  if (error) return errorResponse(error.message);
 
   return new Response(
     JSON.stringify({
