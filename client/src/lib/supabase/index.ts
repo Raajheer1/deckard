@@ -52,7 +52,7 @@ export async function SignUp(
     return {data: null, error};
 }
 
-export async function SetPreferences(preferences: string[]): Promise<{ error: any }> {
+export async function SetPreferences(preferences: string[]): Promise<{ error: any | null }> {
     const {error} = await supabase.functions.invoke('add-preferences', {
         body: {preferences: preferences}
     })
@@ -61,12 +61,22 @@ export async function SetPreferences(preferences: string[]): Promise<{ error: an
         return error;
     }
 
-    return null;
+    return {error: null};
 }
 
 export async function RemovePreference(preference: Preference): Promise<PostgrestError | null> {
     const {error} = await supabase.from('preferences').delete().eq('id', preference.id);
     return error
+}
+
+export async function GetPreferences(userId: string): Promise<{ data: Preference[], error: any }> {
+    const {data, error} = await supabase
+        .from('preferences')
+        .select()
+        .eq('user_id', userId)
+
+    console.log(data);
+    return {data, error};
 }
 
 export async function GetPreferredPapers(): Promise<{ data: PaperCard[], error: any }> {
@@ -88,6 +98,20 @@ export async function mockGetPreferredPapers(): Promise<{ data: PaperCard[], err
             id: "2",
             link: "https://arxiv.org/abs/2106.01442",
             title: "Title 2",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: true
+        },
+        {
+            id: "21",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 21",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: true
+        },
+        {
+            id: "22",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 22",
             summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
             starred: true
         }
@@ -116,6 +140,20 @@ export async function mockSearchPapers(query: string): Promise<{ data: PaperCard
             id: "4",
             link: "https://arxiv.org/abs/2106.01442",
             title: "Title 4",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: false
+        },
+        {
+            id: "31",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 31",
+            summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
+            starred: false
+        },
+        {
+            id: "41",
+            link: "https://arxiv.org/abs/2106.01442",
+            title: "Title 41",
             summary: "lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor incididunt ut labore et dolore magna aliqua",
             starred: false
         }

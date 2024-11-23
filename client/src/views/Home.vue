@@ -1,11 +1,11 @@
 <template>
   <div v-if="self" class="h-screen flex flex-row mx-5">
     <div class="w-1/3 flex flex-col text-center gap-y-4 transition-all duration-500 ease-in-out"
-         :class="moveSide?'-translate-y-16':'translate-x-full'"
+         :class="moveSide?'mt-4':'translate-x-full mt-14'"
     >
-      <h1 class="mt-20 text-4xl font-semibold">Welcome back, <span
+      <h1 class=" text-4xl font-semibold">Search with <span
           class="underline decoration-primary">
-      {{ self.user_metadata.display_name }}!</span>
+      Wallace!</span>
       </h1>
 
       <div class="flex gap-x-4 mx-auto">
@@ -13,11 +13,10 @@
           <InputText id="search_label" v-model="search"
                      @keyup.enter="submitSearch()"
                      class="w-full bg-surface-0 text-black placeholder:text-gray-500"/>
-          <label for="search_label">Search for Research</label>
+          <label for="search_label">Query</label>
         </FloatLabel>
 
         <Button label="Search" @click="submitSearch()"/>
-        <Button label="Logout" @click="Logout"/>
       </div>
 
       <div class="space-y-4 max-h-full overflow-y-hidden px-1">
@@ -49,7 +48,7 @@
         </transition-group>
       </div>
 
-      <div class="space-y-4 max-h-full overflow-y-hidden py-1 px-1">
+      <div class="space-y-4 h-full overflow-y-scroll hide-scrollbar py-1 px-1 mb-2">
         <transition-group
             name="fade-out"
             tag="div"
@@ -80,25 +79,63 @@
         </transition-group>
         <!--        TODO: if realCards and fakeCards are both empty render nothing found. -->
       </div>
+
+      <!--      User Object      -->
+      <div
+          class="flex text-left gap-x-4 mb-6 transition-all duration-500 ease-in-out delay-500 rounded-xl align-middle"
+          :class="moveSide?'bg-gray-200 px-5 py-1 my-auto':''">
+        <div class="flex-grow mt-1">
+          <h2 class="text-xl font-semibold">{{ self.user_metadata.display_name }}</h2>
+          <p class="text-gray-500">{{ self.email }}</p>
+        </div>
+        <Button class="my-2" label="Settings" @click="openSettings"/>
+        <Button class="my-2" label="Logout" @click="Logout"/>
+      </div>
     </div>
     <div v-if="showChat" class="w-2/3 p-4 h-full">
       <FadeIn v-if="showChat && selectedPaper != null" :delay="0.5" class="h-full">
-        <Chat :paper="selectedPaper" :messages="getMessages" @add-msg="handleMsgEmit"/>
+        <Chat :paper="selectedPaper" :messages="getMessages(selectedCard)" @add-msg="handleMsgEmit"/>
       </FadeIn>
     </div>
   </div>
+
+  <Modal title="User Settings" :visible="settingsModal" @close="settingsModal = false"
+         :footer="`User ID: ${getUserId()}`">
+    <div v-if="self" class="space-y-4">
+      <div>
+        <p class="text-sm text-gray-600">Display Name:</p>
+        <h2 class="text-xl text-semibold">{{ self.user_metadata.display_name }}</h2>
+      </div>
+      <div>
+        <p class="text-sm text-gray-600">Email:</p>
+        <h2 class="text-xl text-semibold">{{ self.user_metadata.email }}</h2>
+      </div>
+      <div>
+        <p class="text-sm text-gray-600">Preferences:</p>
+        <div class="flex flex-wrap gap-4 w-full">
+          <Chip v-for="pref in preferences" :key="pref.id" :label="pref.preference"
+                class="cursor-pointer transition duration-200"
+          />
+        </div>
+      </div>
+    </div>
+    <div v-else>
+      <p>Not signed in!</p>
+    </div>
+  </Modal>
 </template>
 
 <script setup lang="ts">
 import {onMounted, reactive, ref} from 'vue';
-import {GetUser, mockGetPreferredPapers, mockSearchPapers, SignOut} from "@/lib/supabase";
+import {GetPreferences, GetUser, mockGetPreferredPapers, mockSearchPapers, SignOut} from "@/lib/supabase";
 import {useRouter} from 'vue-router';
 
 import Chat from "../components/Chat.vue";
 import FadeIn from '../components/FadeIn.vue';
-import {Button, Card, FloatLabel, InputText} from "primevue";
+import Modal from "../components/Modal.vue";
+import {Button, Card, Chip, FloatLabel, InputText} from "primevue";
 import {User} from "@supabase/supabase-js";
-import {Message, PaperCard} from "@/types";
+import {Message, PaperCard, Preference} from "@/types";
 
 const router = useRouter();
 const self = ref<User | null>(null);
@@ -153,6 +190,13 @@ const selectCard = (id: string): void => {
   selectedPaper.value = realCards.value.find(card => card.id === id) || null;
 }
 
+const getUserId = (): string => {
+  if (self.value) {
+    return self.value.id;
+  }
+
+  return 'unknown';
+}
 const Logout = async (): Promise<void> => {
   await SignOut();
   await router.push({name: 'Login'});
@@ -206,9 +250,51 @@ const submitSearch = async (): Promise<void> => {
   }
 }
 
-const messages = reactive<Record<string, Message[]>>({});
+const messages = reactive<Record<string, Message[]>>({
+  '2': [
+    {
+      message: 'Hello, I am interested in your research paper.',
+      author: 'User',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'Wallace',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'User',
+    },
+    {
+      message: 'Hello, I am interested in your research paper.',
+      author: 'User',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'Wallace',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'User',
+    },
+    {
+      message: 'Hello, I am interested in your research paper.',
+      author: 'User',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'Wallace',
+    },
+    {
+      message: 'Hello, I am interested in your research paper',
+      author: 'User',
+    },
+  ]
+});
 
-const getMessages = (id: string): Message[] => {
+const getMessages = (id: string | null): Message[] => {
+  if (!id) {
+    return [];
+  }
   return messages[id] || [];
 }
 
@@ -217,6 +303,19 @@ const handleMsgEmit = (id: string, msg: Message): void => {
     messages[id] = [];
   }
   messages[id].push(msg);
+}
+
+const settingsModal = ref<boolean>(false);
+const preferences = ref<Preference[]>([]);
+
+const openSettings = async (): Promise<void> => {
+  const {data, error} = await GetPreferences(self.value!.id);
+  if (error !== null) {
+    console.error("Error fetching preferences: ", error);
+  } else {
+    preferences.value = data;
+    settingsModal.value = true;
+  }
 }
 
 onMounted(async () => {
@@ -264,5 +363,14 @@ onMounted(async () => {
 .v-enter-from,
 .v-leave-to {
   opacity: 0;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none; /* For Internet Explorer and Edge */
+  scrollbar-width: none; /* For Firefox */
 }
 </style>

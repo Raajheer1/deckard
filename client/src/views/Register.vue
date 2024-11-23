@@ -174,8 +174,8 @@ const submitPreferences = async () => {
   const {error} = await SetPreferences(selectedPrefs.value);
   isLoading.value = false;
 
-  if (error != null) {
-    errorMessage.value = error.message;
+  if (error !== null) {
+    errorMessage.value = error;
     console.log("Preference Error: ", error);
   } else {
     await router.push({name: 'Home'});
