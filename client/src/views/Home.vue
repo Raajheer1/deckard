@@ -3,9 +3,12 @@
     <div class="w-1/3 flex flex-col text-center gap-y-4 transition-all duration-500 ease-in-out"
          :class="moveSide?'mt-4':'translate-x-full mt-14'"
     >
-      <h1 class=" text-4xl font-semibold">Search with <span
-          class="underline decoration-primary">
-      Wallace!</span>
+      <h1 class=" text-4xl font-semibold flex mx-auto">Search with
+        <span class="flex mx-auto border-b-4 border-b-primary ml-2">
+          <img src="@/assets/wallace_lighter.png" alt="Logo"
+               class="w-12 h-12 -mt-2 -z-10 -mr-1.5"/>
+          allace!
+        </span>
       </h1>
 
       <div class="flex gap-x-4 mx-auto">
@@ -16,7 +19,7 @@
           <label for="search_label">Query</label>
         </FloatLabel>
 
-        <Button label="Search" @click="submitSearch()"/>
+        <Button :loading="searchLoading" label="Search" @click="submitSearch()"/>
       </div>
 
       <div class="space-y-4 max-h-full overflow-y-hidden px-1">
@@ -26,6 +29,7 @@
             class="space-y-4"
         >
           <Card
+              v-if="fakeCardCount > 0"
               v-for="i in fakeCardCount"
               :key="i"
               class="text-left"
@@ -48,13 +52,14 @@
         </transition-group>
       </div>
 
-      <div class="space-y-4 h-full overflow-y-scroll hide-scrollbar py-1 px-1 mb-2">
+      <div class="space-y-4 max-h-full overflow-y-scroll hide-scrollbar py-1 px-1 mb-2 relative">
         <transition-group
             name="fade-out"
             tag="div"
             class="space-y-4"
         >
           <Card
+              v-if="realCards.length > 0"
               v-for="card in realCards"
               :key="card.link"
               class="text-left cursor-pointer hover:bg-gray-50 transition duration-200"
@@ -70,19 +75,29 @@
                     <i v-else class="pi pi-star-fill text-yellow-500"></i>
                   </div>
                   <p class="space-y-3 text-wrap  text-gray-400">
-                    {{ card.summary }}
+                    {{ truncateSummary(card.summary) }}
                   </p>
                 </div>
               </div>
             </template>
           </Card>
         </transition-group>
-        <!--        TODO: if realCards and fakeCards are both empty render nothing found. -->
+        <div
+            class="sticky bottom-0 mx-auto  w-10 h-10 justify-center align-middle animate-bounce rounded-full bg-white drop-shadow z-10 transition duration-200 delay-200"
+            :class="realCards.length > 3 ? 'opacity-100':'opacity-0'">
+          <span class="pi pi-arrow-down text-primary mt-3"></span>
+        </div>
+      </div>
+
+      <div
+          class="space-y-4 max-h-full overflow-y-scroll hide-scrollbar py-1 px-1 mb-2 transition duration-200 delay-500"
+          :class="realCards.length === 0 && fakeCardCount === 0 && !swapCondition && !searchLoading ? 'opacity-100' :'opacity-0'">
+        <h5>No articles found based on your preferences.</h5>
       </div>
 
       <!--      User Object      -->
       <div
-          class="flex text-left gap-x-4 mb-6 transition-all duration-500 ease-in-out delay-500 rounded-xl align-middle"
+          class="flex mt-auto text-left gap-x-4 mb-6 transition-all duration-500 ease-in-out delay-500 rounded-xl align-middle"
           :class="moveSide?'bg-gray-200 px-5 py-1 my-auto':''">
         <div class="flex-grow mt-1">
           <h2 class="text-xl font-semibold">{{ self.user_metadata.display_name }}</h2>
@@ -94,7 +109,7 @@
     </div>
     <div v-if="showChat" class="w-2/3 p-4 h-full">
       <FadeIn v-if="showChat && selectedPaper != null" :delay="0.5" class="h-full">
-        <Chat :paper="selectedPaper" :messages="getMessages(selectedCard)" @add-msg="handleMsgEmit"/>
+        <Chat :paper="selectedPaper" :messages="getMessages" @add-msg="handleMsgEmit"/>
       </FadeIn>
     </div>
   </div>
@@ -113,9 +128,23 @@
       <div>
         <p class="text-sm text-gray-600">Preferences:</p>
         <div class="flex flex-wrap gap-4 w-full">
-          <Chip v-for="pref in preferences" :key="pref.id" :label="pref.preference"
-                class="cursor-pointer transition duration-200"
+          <Chip v-for="pref in preferences" :key="pref.id"
+                :label="pref.preference.substring(0, pref.preference.length-9)"
+                class="cursor-pointer transition duration-200 hover:bg-gray-200"
+                v-show="pref.preference.length < 100"
+                icon="pi pi-times"
+                @click="removePreference(pref.id)"
           />
+        </div>
+        <div class="flex gap-x-4 mx-auto my-2">
+          <FloatLabel variant="on">
+            <InputText id="pref_label" v-model="newPreference"
+                       @keyup.enter="addPreference()"
+                       class="w-full bg-surface-0 text-black placeholder:text-gray-500"/>
+            <label for="pref_label">New Preference</label>
+          </FloatLabel>
+
+          <Button label="Add" @click="addPreference()" :loading="prefLoading"/>
         </div>
       </div>
     </div>
@@ -126,8 +155,16 @@
 </template>
 
 <script setup lang="ts">
-import {onMounted, reactive, ref} from 'vue';
-import {GetPreferences, GetUser, mockGetPreferredPapers, mockSearchPapers, SignOut} from "@/lib/supabase";
+import {computed, onMounted, reactive, ref} from 'vue';
+import {
+  GetPreferences,
+  GetPreferredPapers,
+  GetUser,
+  RemovePreference,
+  SearchPapers,
+  SetPreferences,
+  SignOut
+} from "@/lib/supabase";
 import {useRouter} from 'vue-router';
 
 import Chat from "../components/Chat.vue";
@@ -135,7 +172,7 @@ import FadeIn from '../components/FadeIn.vue';
 import Modal from "../components/Modal.vue";
 import {Button, Card, Chip, FloatLabel, InputText} from "primevue";
 import {User} from "@supabase/supabase-js";
-import {Message, PaperCard, Preference} from "@/types";
+import {ChatMessage, PaperCard, Preference} from "@/types";
 
 const router = useRouter();
 const self = ref<User | null>(null);
@@ -182,12 +219,16 @@ const slideLeft = (): void => {
   showChat.value = true;
 }
 
+const swapCondition = ref<boolean>(false);
+
 const selectCard = (id: string): void => {
   if (!moveSide.value) {
     slideLeft();
   }
   selectedCard.value = id;
   selectedPaper.value = realCards.value.find(card => card.id === id) || null;
+  const chatWindow = document.getElementById('chatWindow');
+  chatWindow?.scrollTo(0, chatWindow.scrollHeight);
 }
 
 const getUserId = (): string => {
@@ -200,6 +241,13 @@ const getUserId = (): string => {
 const Logout = async (): Promise<void> => {
   await SignOut();
   await router.push({name: 'Login'});
+}
+
+const truncateSummary = (summary: string): string => {
+  if (summary.length > 200) {
+    return summary.substring(0, 200) + '...';
+  }
+  return summary;
 }
 
 const addReal = async (data: PaperCard[]): Promise<void> => {
@@ -236,69 +284,37 @@ const removeReal = async (data: PaperCard[]): Promise<void> => {
   });
 };
 
-
+const searchLoading = ref<boolean>(false);
 const submitSearch = async (): Promise<void> => {
+  searchLoading.value = true;
   if (search.value === '') {
+    const {data, error} = await GetPreferredPapers();
+    if (error) {
+      console.error("Error fetching preferred papers: ", error);
+    } else {
+      await removeReal(realCards.value);
+      await addReal(data);
+    }
+    searchLoading.value = false;
     return;
   }
   await removeReal(realCards.value);
-  const {data, error} = await mockSearchPapers(search.value);
+  const {data, error} = await SearchPapers(search.value);
   if (error) {
     console.error("Error fetching preferred papers: ", error);
   } else {
     await addReal(data);
   }
+  searchLoading.value = false;
 }
 
-const messages = reactive<Record<string, Message[]>>({
-  '2': [
-    {
-      message: 'Hello, I am interested in your research paper.',
-      author: 'User',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'Wallace',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'User',
-    },
-    {
-      message: 'Hello, I am interested in your research paper.',
-      author: 'User',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'Wallace',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'User',
-    },
-    {
-      message: 'Hello, I am interested in your research paper.',
-      author: 'User',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'Wallace',
-    },
-    {
-      message: 'Hello, I am interested in your research paper',
-      author: 'User',
-    },
-  ]
+const messages = reactive<Record<string, ChatMessage[]>>({});
+
+const getMessages = computed(() => {
+  return messages[selectedCard.value || -1] || [];
 });
 
-const getMessages = (id: string | null): Message[] => {
-  if (!id) {
-    return [];
-  }
-  return messages[id] || [];
-}
-
-const handleMsgEmit = (id: string, msg: Message): void => {
+const handleMsgEmit = (id: string, msg: ChatMessage): void => {
   if (!messages[id]) {
     messages[id] = [];
   }
@@ -307,6 +323,7 @@ const handleMsgEmit = (id: string, msg: Message): void => {
 
 const settingsModal = ref<boolean>(false);
 const preferences = ref<Preference[]>([]);
+const prefLoading = ref<boolean>(false);
 
 const openSettings = async (): Promise<void> => {
   const {data, error} = await GetPreferences(self.value!.id);
@@ -318,6 +335,54 @@ const openSettings = async (): Promise<void> => {
   }
 }
 
+const removePreference = async (id: string): Promise<void> => {
+  swapCondition.value = true;
+  const error = await RemovePreference(id);
+  if (error !== null) {
+    console.error("Error removing preference: ", error);
+  } else {
+    preferences.value = preferences.value.filter(pref => pref.id !== id);
+    const {data, error} = await GetPreferredPapers();
+    if (error) {
+      console.error("Error fetching preferred papers: ", error);
+    } else {
+      await removeReal(realCards.value);
+      await addReal(data);
+    }
+  }
+  swapCondition.value = false;
+}
+
+const newPreference = ref<string>('');
+const addPreference = async (): Promise<void> => {
+  prefLoading.value = true;
+  swapCondition.value = true;
+  const {error} = await SetPreferences([newPreference.value]);
+  if (error) {
+    console.error("Error setting preference: ", error);
+  } else {
+    let {data, error} = await GetPreferences(self.value!.id);
+    if (error !== null) {
+      console.error("Error fetching preferences: ", error);
+    } else {
+      preferences.value = data;
+    }
+
+    newPreference.value = '';
+    prefLoading.value = false;
+
+    let {data: prefData, error: prefError} = await GetPreferredPapers();
+    if (prefError) {
+      console.error("Error fetching preferred papers: ", prefError);
+    } else {
+      await removeReal(realCards.value);
+      await addReal(prefData);
+    }
+  }
+
+  swapCondition.value = false;
+}
+
 onMounted(async () => {
   const user: User | null = await GetUser();
   self.value = user;
@@ -327,7 +392,7 @@ onMounted(async () => {
   }
 
   // Fetch real cards
-  const {data, error} = await mockGetPreferredPapers();
+  const {data, error} = await GetPreferredPapers();
   if (error) {
     console.error("Error fetching preferred papers: ", error);
   } else {

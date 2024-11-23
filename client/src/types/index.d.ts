@@ -22,7 +22,7 @@ export interface PaperCard {
     starred: boolean;
 }
 
-export interface Message {
-    message: string;
-    author: string;
+export interface ChatMessage {
+    content: string;
+    role: "user" | "assistant";
 }

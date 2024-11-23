@@ -1,5 +1,5 @@
 <template>
-  <router-view class="flex-grow"/>
+  <router-view/>
 </template>
 
 <script setup lang="ts"></script>
