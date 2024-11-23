@@ -1,7 +1,7 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
 import { getArxivPapers } from "../lib/query-arxiv.ts";
 import { errorResponse } from "../lib/error-response.ts";
+import supabaseClient from "../lib/supabase-client.ts";
 
 Deno.serve(async (req) => {
   const { paperCount, category } = await req.json();
@@ -41,23 +41,21 @@ Deno.serve(async (req) => {
   if (!embeddings) return errorResponse("Failed to generate embeddings");
   console.log("Embeddings created successfully: ", embeddings.length);
 
-  // Initialize Supabase client
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
-
   // Insert papers with embeddings into database
   console.log("Inserting papers into database...");
   const { data: _, error: insertError } = await supabaseClient
     .from("papers")
-    .insert(
+    .upsert(
       papers.map((paper, index) => ({
         link: paper.link,
         title: paper.title,
         summary: paper.summary.slice(0, 500),
         embedding: embeddings[index],
       })),
+      {
+        onConflict: "link",
+        ignoreDuplicates: true,
+      },
     );
   if (insertError) return errorResponse(insertError.message);
   console.log("Papers inserted into database successfully");

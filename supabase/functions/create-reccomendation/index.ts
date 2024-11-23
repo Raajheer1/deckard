@@ -1,14 +1,8 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { errorResponse } from "../lib/error-response.ts";
-
+import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
   // Get parameters from request body
   const { matchThreshold = 0.3, matchCount = 10 } = await req.json();
-
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
 
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;

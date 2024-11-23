@@ -1,3 +1,7 @@
+DROP TABLE IF EXISTS papers;
+DROP TABLE IF EXISTS preferences;
+DROP TABLE IF EXISTS profiles;
+
 CREATE TABLE papers (
     id SERIAL PRIMARY KEY,
     link VARCHAR(255) UNIQUE NOT NULL,
@@ -8,7 +12,7 @@ CREATE TABLE papers (
 CREATE TABLE preferences (
   id SERIAL PRIMARY KEY,
   preference VARCHAR(255) NOT NULL,
-  user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE
+  user_id UUID REFERENCES auth.users (id) ON DELETE CASCADE,
   embedding vector(1024)
 );
 
@@ -55,6 +59,7 @@ as $$
   limit match_count;
 $$;
 
+-- Function to search papers based on similarity
 CREATE OR REPLACE FUNCTION search_papers (
   query_embedding vector(1024),
   match_threshold float,
@@ -81,6 +86,7 @@ as $$
   limit match_count;
 $$;
 
+-- Table to store user profiles
 CREATE TABLE public.profiles (
   id UUID NOT NULL REFERENCES auth.users ON DELETE CASCADE,
   display_name TEXT,
@@ -88,8 +94,8 @@ CREATE TABLE public.profiles (
   PRIMARY KEY (id)
 );
 
--- Inserts a row into public.profiles
-CREATE FUNCTION public.handle_new_user()
+-- Function to insert a row into public.profiles
+CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
 LANGUAGE plpgsql
 SECURITY DEFINER SET search_path = 'public'
@@ -102,6 +108,6 @@ END;
 $$;
 
 -- Trigger the function every time a user is created
-CREATE TRIGGER on_auth_user_created
+CREATE OR REPLACE TRIGGER on_auth_user_created
 AFTER INSERT ON auth.users
 FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();

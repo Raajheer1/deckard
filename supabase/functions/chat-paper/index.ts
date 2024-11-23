@@ -1,13 +1,7 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { errorResponse } from "../lib/error-response.ts";
 import { Anthropic } from "npm:@anthropic-ai/sdk";
-
+import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
-
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
@@ -29,6 +23,7 @@ Deno.serve(async (req: Request) => {
     paperId,
     model = "claude-3-5-sonnet-latest",
     max_tokens = 1024,
+    system_prompt = "",
   } = await req.json();
   if (!messages || !Array.isArray(messages)) {
     return errorResponse("Invalid messages format");
@@ -52,10 +47,7 @@ Deno.serve(async (req: Request) => {
     You are discussing the paper "${paper.title}".
     
     Here is its abstract: "${paper.summary}"
-    
-    You are an intelligent researcher explaining the paper to the user who may not be familiar 
-    with the concepts discussed in the paper. Be very concise in your answers, only specifying
-    the most important points.
+    ${system_prompt}
   `;
 
   const anthropic = new Anthropic({

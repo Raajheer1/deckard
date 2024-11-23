@@ -1,6 +1,6 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { getVoyageEmbeddings } from "../lib/voyage-embeddings.ts";
 import { errorResponse } from "../lib/error-response.ts";
+import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
   const { preferences } = await req.json();
   if (!preferences) {
@@ -9,10 +9,6 @@ Deno.serve(async (req: Request) => {
       status: 400,
     });
   }
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
 
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;

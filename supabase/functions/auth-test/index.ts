@@ -1,12 +1,10 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
 import { errorResponse } from "../lib/error-response.ts";
-
+import supabaseClient from "../lib/supabase-client.ts";
 Deno.serve(async (req: Request) => {
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-  );
-
+  // Verify supabase client is initialized correctly
+  if (!supabaseClient) {
+    return errorResponse("Supabase client not initialized");
+  }
   // Get the session or user object
   const authHeader = req.headers.get("Authorization")!;
   const token = authHeader.replace("Bearer ", "");
