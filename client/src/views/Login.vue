@@ -3,11 +3,13 @@
     <div
         class="flex flex-col justify-center items-center p-[30px]"
     >
-      <!-- Title -->
-      <div class="flex flex-col items-center mb-[20px]">
-        <h1 class="text-[50px] font-bold">Login to <span
-            class="underline decoration-black text-primary">Deckard</span></h1>
-      </div>
+      <h1 class=" text-4xl font-semibold flex mx-auto mb-4">Login to
+        <span class="flex mx-auto border-b-4 border-b-primary ml-2">
+          <img src="@/assets/wallace_lighter.png" alt="Logo"
+               class="w-12 h-12 -mt-2 -z-10 -mr-1.5"/>
+          allace!
+        </span>
+      </h1>
 
       <!-- Login Form -->
       <form

@@ -5,11 +5,13 @@
         class="flex flex-col w-full justify-center items-center p-[30px]"
     >
       <!-- Title -->
-      <div class="flex flex-col items-center mb-[20px]">
-        <h1 class="text-[50px] font-bold">
-          Sign Up for Deckard
-        </h1>
-      </div>
+      <h1 class=" text-4xl font-semibold flex mx-auto mb-4">Register for
+        <span class="flex mx-auto border-b-4 border-b-primary ml-2">
+          <img src="@/assets/wallace_lighter.png" alt="Logo"
+               class="w-12 h-12 -mt-2 -z-10 -mr-1.5"/>
+          allace!
+        </span>
+      </h1>
 
       <!-- Signup Form -->
       <form
